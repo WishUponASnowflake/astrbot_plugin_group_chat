@@ -40,7 +40,6 @@
 | `fatigue_manager_enabled`       | `bool`  | `True` | 是否启用疲劳管理。                             |
 | `max_replies_in_session`        | `int`   | `10`   | 单次会话（未进入疲劳前）的最大回复数。         |
 | `fatigue_recovery_time`         | `int`   | `300`  | 疲劳状态恢复所需时间（秒）。                   |
-| `typing_simulation_enabled`     | `bool`  | `True` | 是否启用打字模拟。                             |
 | `enable_memory_integration`     | `bool`  | `False`| 是否启用记忆系统集成。                         |
 
 更多详细配置，请直接查阅 [`config/plugin_config.py`](config/plugin_config.py) 文件。
