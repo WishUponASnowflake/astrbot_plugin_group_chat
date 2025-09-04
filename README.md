@@ -1,189 +1,61 @@
-# AstrBot Group Chat Plugin
+# AstrBot 高级群聊插件 (astrbot_plugin_group_chat)
 
-一个实现高级群聊交互模式的AstrBot插件，包含专注聊天、多种回复生成方式和动态回复意愿管理。
+![版本](https://img.shields.io/badge/version-1.0.0-blue)![作者](https://img.shields.io/badge/author-qa296-brightgreen)
+[![GitHub antd-design-blazor](https://img.shields.io/github/stars/qa296/astrbot_plugin_group_chat?style=social)](https://github.com/qa296/astrbot_plugin_group_chat)
 
-## 功能特性
+一个为 [AstrBot](https://github.com/your-astrbot-repo-link) 设计的高级群聊交互插件，它能像真人一样分析群聊氛围、评估对话兴趣，并主动参与对话，旨在实现真正拟人化的、沉浸式的主动交互体验。
 
-### 🎯 核心功能
+## ✨ 项目特色
 
-1. **智能回复系统**
-   - 动态回复意愿计算
-   - 兴趣度评估（"守门员"机制）
-   - 疲劳管理防止话痨
-   - 灵活的回复生成
+- **拟人化交互**: 摆脱传统问答机器人的被动形象，能够主动、自然地融入群聊。
+- **双模对话系统**:
+    - **经典模式 (Classic Mode)**: 基于回复意愿和兴趣度的常规聊天模式。
+    - **专注模式 (Focused Mode)**: 当检测到高热度或高相关性对话时，机器人会进入此模式，更积极地参与连续对话。
+- **动态回复意愿**: 综合考虑是否被`@`、话题兴趣度、时间衰减等多种因素，动态计算回复意愿，让交互更真实。
+- **兴趣度评估**: 通过关键词、上下文、发送者和时间等多维度权重，智能评估机器人对当前话题的“兴趣”。
+- **疲劳管理系统**: 模拟真人的聊天疲劳，在长时间高强度对话后会自动降低活跃度，避免刷屏。
+- **打字模拟**: 在发送消息前模拟真实的打字延迟，进一步提升拟人化体验。
+- **高度可配置**: 几乎所有功能参数，如意愿阈值、疲劳度、兴趣权重等，都可通过配置文件进行详细定制。
+- **记忆系统集成 (可选)**: 可集成外部记忆系统，让机器人根据印象调整回复意愿，对话更具连续性。
 
-2. **双模式聊天**
-   - **普通聊天模式**：轻量级后台处理
-     - 经典模式：简单直接的回复意愿计算
-     - 专注模式：复杂拟人的个人化意愿计算
-   - **专注聊天模式**：深度思考循环
-     - 观察-处理-规划-行动的完整流程
-     - 并行处理器整合信息
+## ⚙️ 安装
 
-3. **记忆系统集成**（可选）
-   - 与MemoraConnectPlugin插件集成
-   - 基于历史交互的个性化回复
-   - 用户印象和关系管理
+1.  确保您已经成功部署了 AstrBot。
+2.  将本项目克隆或下载到 AstrBot 的 `plugins` 目录下。
+3.  重启 AstrBot，插件将被自动加载。
 
-### 🧠 智能特性
+## 🔧 配置
 
-- **兴趣度评估**：分析消息类型、内容长度、交互性等
-- **疲劳管理**：自动控制回复频率，避免刷屏
-- **模式切换**：根据聊天激烈程度自动切换模式
-- **个性化回复**：基于用户关系和聊天历史的定制回复
+插件的详细配置位于 `config/plugin_config.py` 文件中，您也可以通过 AstrBot 提供的配置文件覆盖默认设置。
 
-## 安装使用
+以下是核心配置项说明：
 
-### 1. 安装插件
+| 配置项                          | 类型    | 默认值 | 描述                                           |
+| ------------------------------- | ------- | ------ | ---------------------------------------------- |
+| `enable_plugin`                 | `bool`  | `True` | 是否启用插件。                                 |
+| `debug_mode`                    | `bool`  | `False`| 启用后会输出详细的决策日志。                   |
+| `enable_focused_chat`           | `bool`  | `True` | 是否启用“专注聊天”模式。                       |
+| `focused_chat_threshold`        | `float` | `0.7`  | 激活专注模式的兴趣度阈值。                     |
+| `classic_base_willingness`      | `float` | `0.3`  | 经典模式下的基础回复意愿。                     |
+| `focused_base_willingness`      | `float` | `0.4`  | 专注模式下的基础回复意愿。                     |
+| `fatigue_manager_enabled`       | `bool`  | `True` | 是否启用疲劳管理。                             |
+| `max_replies_in_session`        | `int`   | `10`   | 单次会话（未进入疲劳前）的最大回复数。         |
+| `fatigue_recovery_time`         | `int`   | `300`  | 疲劳状态恢复所需时间（秒）。                   |
+| `typing_simulation_enabled`     | `bool`  | `True` | 是否启用打字模拟。                             |
+| `enable_memory_integration`     | `bool`  | `False`| 是否启用记忆系统集成。                         |
 
-将插件文件夹放置到AstrBot的`data/plugins/`目录下。
+更多详细配置，请直接查阅 [`config/plugin_config.py`](config/plugin_config.py) 文件。
 
-### 2. 配置插件
+## 🚀 使用
 
-在AstrBot管理面板中配置插件参数，主要包括：
+插件加载后将自动接管所有群聊消息。它会在后台默默分析每一条消息，并根据内部的决策逻辑判断是否以及如何进行回复。
 
-- **基础配置**：插件开关、调试模式
-- **模式配置**：专注聊天阈值、模式切换冷却时间
-- **回复意愿配置**：经典模式和专注模式的参数调整
-- **兴趣度评估配置**：各项评估因素的权重
-- **疲劳管理配置**：回复次数限制、恢复时间等
-- **记忆系统配置**：记忆集成开关、影响权重等
+您无需进行任何额外的操作，只需观察它在群聊中的表现即可。
 
-### 3. 使用插件
+## 🤝 贡献
 
-插件会自动处理群聊消息，无需手动干预。你可以使用以下命令查看统计信息：
+欢迎通过以下方式为本项目做出贡献：
 
-```
-/groupchat_stats
-```
+-   **提交 Issue**: 如果您发现了 Bug 或有任何功能建议，请随时提交 Issue。
+-   **发起 Pull Request**: 我们非常欢迎您通过 PR 的方式为项目贡献代码。
 
-## 配置说明
-
-### 重要配置项
-
-#### 基础配置
-- `enable_plugin`: 是否启用插件
-- `debug_mode`: 调试模式开关
-
-#### 模式配置
-- `enable_focused_chat`: 是否启用专注聊天模式
-- `focused_chat_threshold`: 专注聊天激活阈值（0-1）
-- `mode_switch_cooldown`: 模式切换冷却时间（秒）
-
-#### 回复意愿配置
-- `classic_mode_enabled`: 启用经典模式
-- `focused_mode_enabled`: 启用专注模式
-- `response_probability_multiplier`: 回复概率倍数
-
-#### 兴趣度评估配置
-- `interest_threshold`: 兴趣度阈值
-- `keyword_weight`: 关键词权重
-- `context_weight`: 上下文权重
-- `sender_weight`: 发送者权重
-- `time_weight`: 时间权重
-
-#### 疲劳管理配置
-- `max_replies_in_session`: 单次会话最大回复数
-- `fatigue_recovery_time`: 疲劳恢复时间（秒）
-- `typing_simulation_enabled`: 启用打字模拟
-
-#### 记忆系统配置
-- `enable_memory_integration`: 启用记忆系统集成
-- `memory_influence_weight`: 记忆系统影响权重
-- `memory_recall_limit`: 记忆回忆数量限制
-
-## 工作原理
-
-### 1. 消息处理流程
-
-```
-群聊消息 → 兴趣度评估 → 模式判断 → 回复意愿计算 → 生成回复 → 发送消息
-```
-
-### 2. 专注聊天模式
-
-当消息兴趣度超过阈值时，插件会进入专注聊天模式：
-
-1. **观察阶段**：收集消息信息和上下文
-2. **处理阶段**：并行处理各种信息（工作记忆、关系、工具、表达风格）
-3. **规划阶段**：基于处理结果决定行动方案
-4. **行动阶段**：执行回复或其他行动
-
-### 3. 回复意愿计算
-
-#### 经典模式
-- 基于整个聊天的回复意愿
-- 被@或感兴趣话题时意愿上升
-- 回复后意愿大幅衰减防刷屏
-
-#### 专注模式
-- 针对每个人的独立回复意愿
-- 考虑群聊热度、连续对话、说话频率
-- 包含疲劳机制避免过度回复
-
-## 依赖要求
-
-- Python 3.8+
-- AstrBot 3.4.0+
-- aiohttp>=3.9.0（已在requirements.txt中）
-
-### 可选依赖
-
-- MemoraConnectPlugin：用于记忆系统功能
-
-## 开发说明
-
-### 项目结构
-
-```
-astrbot_plugin_group_chat/
-├── main.py                 # 插件主入口
-├── metadata.yaml          # 插件元数据
-├── requirements.txt       # 依赖列表
-├── README.md              # 说明文档
-├── config/                # 配置模块
-│   ├── __init__.py
-│   ├── plugin_config.py   # 配置管理
-│   └── _conf_schema.json  # 配置界面定义
-└── core/                  # 核心模块
-    ├── __init__.py
-    ├── chat_manager.py    # 聊天管理器
-    ├── mode_manager.py    # 模式管理器
-    ├── interest_evaluator.py  # 兴趣度评估器
-    ├── reply_generator.py     # 回复生成器
-    ├── fatigue_manager.py     # 疲劳管理器
-    └── memory_integration.py  # 记忆系统集成
-```
-
-### 核心模块说明
-
-- **ChatManager**：核心聊天管理，处理消息评估和回复生成
-- **ModeManager**：模式管理，切换普通聊天和专注聊天模式
-- **InterestEvaluator**：兴趣度评估，"守门员"机制
-- **ReplyGenerator**：回复生成，灵活的回复内容生成
-- **FatigueManager**：疲劳管理，防止话痨
-- **MemoryIntegration**：记忆系统集成，与MemoraConnectPlugin交互
-
-## 注意事项
-
-1. **性能考虑**：插件会维护用户和群组状态，内存使用会随活跃度增长
-2. **隐私保护**：记忆系统功能默认关闭，需手动启用
-3. **配置调优**：建议根据实际使用场景调整各项参数
-4. **调试模式**：遇到问题时可开启调试模式查看详细日志
-
-## 更新日志
-
-### v1.0.0
-- 初始版本发布
-- 实现基础群聊交互功能
-- 支持双模式聊天
-- 集成记忆系统（可选）
-- 提供完整的配置管理
-
-## 许可证
-
-MIT License
-
-## 作者
-
-qa296
