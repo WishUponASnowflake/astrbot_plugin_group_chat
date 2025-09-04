@@ -6,39 +6,14 @@ AstrBot Group Chat Plugin - Interest Evaluator
 import re
 import time
 from typing import TYPE_CHECKING
-from dataclasses import dataclass
-from enum import Enum
 
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
 
-from .chat_manager import UserState, GroupState
+from .types import UserState, GroupState, MessageType, InterestFactors
 
 if TYPE_CHECKING:
     from ..config.plugin_config import PluginConfig
-
-
-class MessageType(Enum):
-    """消息类型分析"""
-    QUESTION = "question"  # 问题
-    STATEMENT = "statement"  # 陈述
-    EMOTION = "emotion"  # 情感表达
-    COMMAND = "command"  # 命令
-    GREETING = "greeting"  # 问候
-    RESPONSE = "response"  # 回应
-    UNKNOWN = "unknown"  # 未知
-
-
-@dataclass
-class InterestFactors:
-    """兴趣度因素"""
-    message_type_score: float = 0.0  # 消息类型得分
-    content_length_score: float = 0.0  # 内容长度得分
-    interaction_score: float = 0.0  # 交互性得分
-    personal_relevance_score: float = 0.0  # 个人相关性得分
-    context_relevance_score: float = 0.0  # 上下文相关性得分
-    time_factor_score: float = 0.0  # 时间因素得分
-    sender_relationship_score: float = 0.0  # 发送者关系得分
 
 
 class InterestEvaluator:

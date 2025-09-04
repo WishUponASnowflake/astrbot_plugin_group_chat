@@ -7,8 +7,6 @@ import asyncio
 import time
 import random
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
 
 from astrbot.api.event import AstrMessageEvent, MessageEventResult
 from astrbot.api import logger
@@ -18,55 +16,7 @@ from .interest_evaluator import InterestEvaluator
 from .reply_generator import ReplyGenerator
 from .fatigue_manager import FatigueManager
 from .memory_integration import MemoryIntegration
-
-
-class ChatMode(Enum):
-    """聊天模式枚举"""
-    NORMAL = "normal"  # 普通聊天模式
-    FOCUSED = "focused"  # 专注聊天模式
-
-
-class WillingnessMode(Enum):
-    """回复意愿模式枚举"""
-    CLASSIC = "classic"  # 经典模式
-    FOCUSED = "focused"  # 专注模式
-
-
-@dataclass
-class UserState:
-    """用户状态"""
-    user_id: str
-    group_id: str
-    willingness: float = 0.5  # 回复意愿
-    last_interaction_time: float = 0.0  # 最后交互时间
-    reply_count: int = 0  # 回复次数
-    fatigue_level: float = 0.0  # 疲劳程度
-    consecutive_replies: int = 0  # 连续回复次数
-    conversation_streak: int = 0  # 连续对话计数
-    personal_interest: float = 0.5  # 个人兴趣度
-
-
-@dataclass
-class GroupState:
-    """群组状态"""
-    group_id: str
-    chat_heat: float = 0.0  # 群聊热度
-    active_users: List[str] = field(default_factory=list)  # 活跃用户
-    last_message_time: float = 0.0  # 最后消息时间
-    message_count: int = 0  # 消息计数
-    current_mode: ChatMode = ChatMode.NORMAL  # 当前模式
-    mode_switch_time: float = 0.0  # 模式切换时间
-
-
-@dataclass
-class ThinkingContext:
-    """思考上下文"""
-    event: AstrMessageEvent
-    user_state: UserState
-    group_state: GroupState
-    interest_score: float
-    memory_context: Optional[Dict[str, Any]] = None
-    thinking_material: Dict[str, Any] = field(default_factory=dict)
+from .types import ChatMode, WillingnessMode, UserState, GroupState, ThinkingContext
 
 
 class GroupChatManager:

@@ -3,6 +3,15 @@ AstrBot Group Chat Plugin - Core Module
 核心模块初始化文件
 """
 
+from .types import (
+    ChatMode,
+    WillingnessMode,
+    UserState,
+    GroupState,
+    ThinkingContext,
+    MessageType,
+    InterestFactors,
+)
 from .chat_manager import GroupChatManager
 from .mode_manager import ModeManager
 from .interest_evaluator import InterestEvaluator
@@ -16,5 +25,12 @@ __all__ = [
     'InterestEvaluator',
     'ReplyGenerator',
     'FatigueManager',
-    'MemoryIntegration'
+    'MemoryIntegration',
+    'ChatMode',
+    'WillingnessMode',
+    'UserState',
+    'GroupState',
+    'ThinkingContext',
+    'MessageType',
+    'InterestFactors',
 ]
