@@ -22,9 +22,6 @@ class ReplyGenerator:
         self.config: "PluginConfig" = plugin_config
         self.context: Context = context  # 存储核心上下文
 
-        # 表情符号（可选添加）
-        self.emojis = ["😊", "🙂", "😄", "👍", "✨", "🤔", "💭", "😌", "🤗", "🎉"]
-
         logger.info("ReplyGenerator 初始化完成")
 
     async def generate_reply(self, context: "ThinkingContext", reply_mode: str,
