@@ -1,0 +1,250 @@
+{
+  "enable_plugin": {
+    "description": "是否启用插件",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后插件将不会处理任何消息"
+  },
+  "debug_mode": {
+    "description": "调试模式",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后会输出详细的调试日志"
+  },
+  "enable_focused_chat": {
+    "description": "启用专注聊天模式",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后将只使用普通聊天模式"
+  },
+  "focused_chat_threshold": {
+    "description": "专注聊天激活阈值",
+    "type": "float",
+    "default": 0.7,
+    "hint": "兴趣度超过此值将激活专注聊天模式，范围0-1"
+  },
+  "mode_switch_cooldown": {
+    "description": "模式切换冷却时间",
+    "type": "int",
+    "default": 30,
+    "hint": "模式切换后的冷却时间（秒）"
+  },
+  "classic_mode_enabled": {
+    "description": "启用经典模式",
+    "type": "bool",
+    "default": true,
+    "hint": "普通聊天中的经典回复意愿计算模式"
+  },
+  "classic_base_willingness": {
+    "description": "经典模式基础回复意愿",
+    "type": "float",
+    "default": 0.3,
+    "hint": "经典模式下的基础回复意愿，范围0-1"
+  },
+  "classic_at_boost": {
+    "description": "经典模式@提升",
+    "type": "float",
+    "default": 0.8,
+    "hint": "被@时的回复意愿提升值，范围0-1"
+  },
+  "classic_topic_interest_boost": {
+    "description": "经典模式话题兴趣提升",
+    "type": "float",
+    "default": 0.5,
+    "hint": "感兴趣话题的回复意愿提升值，范围0-1"
+  },
+  "classic_reply_decay": {
+    "description": "经典模式回复衰减",
+    "type": "float",
+    "default": 0.7,
+    "hint": "回复后的意愿衰减系数，范围0-1"
+  },
+  "classic_time_decay_rate": {
+    "description": "经典模式时间衰减率",
+    "type": "float",
+    "default": 0.95,
+    "hint": "时间衰减率，数值越小衰减越快，范围0-1"
+  },
+  "focused_mode_enabled": {
+    "description": "启用专注模式",
+    "type": "bool",
+    "default": true,
+    "hint": "普通聊天中的专注回复意愿计算模式"
+  },
+  "focused_base_willingness": {
+    "description": "专注模式基础回复意愿",
+    "type": "float",
+    "default": 0.4,
+    "hint": "专注模式下的基础回复意愿，范围0-1"
+  },
+  "focused_personal_factor": {
+    "description": "专注模式个人化因素权重",
+    "type": "float",
+    "default": 0.6,
+    "hint": "个人化因素在意愿计算中的权重，范围0-1"
+  },
+  "focused_chat_heat_factor": {
+    "description": "专注模式群聊热度因素权重",
+    "type": "float",
+    "default": 0.3,
+    "hint": "群聊热度在意愿计算中的权重，范围0-1"
+  },
+  "focused_conversation_factor": {
+    "description": "专注模式连续对话因素权重",
+    "type": "float",
+    "default": 0.5,
+    "hint": "连续对话在意愿计算中的权重，范围0-1"
+  },
+  "focused_frequency_factor": {
+    "description": "专注模式说话频率因素权重",
+    "type": "float",
+    "default": 0.2,
+    "hint": "说话频率在意愿计算中的权重，范围0-1"
+  },
+  "focused_fatigue_threshold": {
+    "description": "专注模式疲劳阈值",
+    "type": "int",
+    "default": 5,
+    "hint": "触发疲劳的连续回复次数阈值"
+  },
+  "focused_fatigue_decay_rate": {
+    "description": "专注模式疲劳衰减率",
+    "type": "float",
+    "default": 0.8,
+    "hint": "疲劳状态的衰减系数，范围0-1"
+  },
+  "interest_evaluator_enabled": {
+    "description": "启用兴趣度评估器",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后将不会评估消息兴趣度"
+  },
+  "interest_threshold": {
+    "description": "兴趣度阈值",
+    "type": "float",
+    "default": 0.5,
+    "hint": "兴趣度超过此值被认为有趣，范围0-1"
+  },
+  "keyword_weight": {
+    "description": "关键词权重",
+    "type": "float",
+    "default": 0.4,
+    "hint": "关键词在兴趣度计算中的权重，范围0-1"
+  },
+  "context_weight": {
+    "description": "上下文权重",
+    "type": "float",
+    "default": 0.3,
+    "hint": "上下文在兴趣度计算中的权重，范围0-1"
+  },
+  "sender_weight": {
+    "description": "发送者权重",
+    "type": "float",
+    "default": 0.2,
+    "hint": "发送者在兴趣度计算中的权重，范围0-1"
+  },
+  "time_weight": {
+    "description": "时间权重",
+    "type": "float",
+    "default": 0.1,
+    "hint": "时间因素在兴趣度计算中的权重，范围0-1"
+  },
+  "fatigue_manager_enabled": {
+    "description": "启用疲劳管理器",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后将不会进行疲劳管理"
+  },
+  "max_replies_in_session": {
+    "description": "单次会话最大回复数",
+    "type": "int",
+    "default": 10,
+    "hint": "单次专注聊天会话中的最大回复次数"
+  },
+  "fatigue_recovery_time": {
+    "description": "疲劳恢复时间",
+    "type": "int",
+    "default": 300,
+    "hint": "疲劳状态的恢复时间（秒）"
+  },
+  "typing_simulation_enabled": {
+    "description": "启用打字模拟",
+    "type": "bool",
+    "default": true,
+    "hint": "模拟人类打字的延迟效果"
+  },
+  "typing_min_delay": {
+    "description": "最小打字延迟",
+    "type": "float",
+    "default": 1.0,
+    "hint": "打字模拟的最小延迟时间（秒）"
+  },
+  "typing_max_delay": {
+    "description": "最大打字延迟",
+    "type": "float",
+    "default": 3.0,
+    "hint": "打字模拟的最大延迟时间（秒）"
+  },
+  "reply_generator_enabled": {
+    "description": "启用回复生成器",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后将不会生成回复"
+  },
+  "reply_mode": {
+    "description": "回复模式",
+    "type": "string",
+    "default": "responder",
+    "options": ["responder", "expresser"],
+    "hint": "responder: 直接生成回复，expresser: 先思考再表达"
+  },
+  "expresser_thinking_enabled": {
+    "description": "启用表达器思考过程",
+    "type": "bool",
+    "default": true,
+    "hint": "是否启用表达器的思考过程模拟"
+  },
+  "max_reply_length": {
+    "description": "最大回复长度",
+    "type": "int",
+    "default": 500,
+    "hint": "回复消息的最大字符长度"
+  },
+  "enable_emoji": {
+    "description": "启用表情符号",
+    "type": "bool",
+    "default": true,
+    "hint": "是否在回复中使用表情符号"
+  },
+  "enable_memory_integration": {
+    "description": "启用记忆系统集成",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后将使用MemoraConnectPlugin的记忆功能",
+    "obvious_hint": true
+  },
+  "memory_influence_weight": {
+    "description": "记忆系统影响权重",
+    "type": "float",
+    "default": 0.3,
+    "hint": "记忆系统在决策中的影响权重，范围0-1"
+  },
+  "memory_recall_limit": {
+    "description": "记忆回忆数量限制",
+    "type": "int",
+    "default": 3,
+    "hint": "每次回忆的相关记忆数量限制"
+  },
+  "response_probability_multiplier": {
+    "description": "回复概率倍数",
+    "type": "float",
+    "default": 1.0,
+    "hint": "整体回复概率的倍数调整，大于1增加回复频率"
+  },
+  "experimental_features": {
+    "description": "实验性功能",
+    "type": "bool",
+    "default": false,
+    "hint": "启用正在开发中的实验性功能"
+  }
+}
