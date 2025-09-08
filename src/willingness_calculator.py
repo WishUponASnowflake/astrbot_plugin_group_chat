@@ -70,16 +70,110 @@ class WillingnessCalculator:
             }
     
     def _calculate_group_activity(self, chat_context: Dict) -> float:
-        """计算群活跃度"""
+        """计算多维度群活跃度"""
         conversation_history = chat_context.get("conversation_history", [])
         if not conversation_history:
             return 0.0
-        
-        # 简单的活跃度计算：最近5分钟内的消息数量
+
         current_time = time.time()
-        recent_count = sum(1 for msg in conversation_history if current_time - msg.get("timestamp", 0) < 300)
-        
-        return min(1.0, recent_count / 10.0)  # 假设10条消息为最大活跃度
+
+        # 1. 时间窗口分析（多时间段）
+        time_windows = [
+            (60, 0.4),   # 最近1分钟，权重40%
+            (300, 0.3),  # 最近5分钟，权重30%
+            (1800, 0.2), # 最近30分钟，权重20%
+            (3600, 0.1), # 最近1小时，权重10%
+        ]
+
+        activity_score = 0.0
+        for window_seconds, weight in time_windows:
+            recent_count = sum(1 for msg in conversation_history
+                             if current_time - msg.get("timestamp", 0) < window_seconds)
+            # 标准化到0-1范围（假设每分钟最大5条消息为活跃）
+            normalized_count = min(1.0, recent_count / (window_seconds / 60 * 5))
+            activity_score += normalized_count * weight
+
+        # 2. 用户参与度分析
+        recent_users = set()
+        for msg in conversation_history:
+            if current_time - msg.get("timestamp", 0) < 300:  # 最近5分钟
+                recent_users.add(msg.get("user_id", ""))
+
+        user_participation = min(1.0, len(recent_users) / 10.0)  # 假设10个活跃用户为满分
+
+        # 3. 消息质量评估
+        quality_score = self._assess_message_quality(conversation_history, current_time)
+
+        # 4. 话题持续性分析
+        topic_continuity = self._assess_topic_continuity(conversation_history, current_time)
+
+        # 综合评分（活跃度40% + 用户参与30% + 质量20% + 持续性10%）
+        final_activity = (
+            activity_score * 0.4 +
+            user_participation * 0.3 +
+            quality_score * 0.2 +
+            topic_continuity * 0.1
+        )
+
+        return min(1.0, max(0.0, final_activity))
+
+    def _assess_message_quality(self, conversation_history: list, current_time: float) -> float:
+        """评估消息质量"""
+        recent_messages = [msg for msg in conversation_history
+                          if current_time - msg.get("timestamp", 0) < 300]
+
+        if not recent_messages:
+            return 0.0
+
+        quality_scores = []
+        for msg in recent_messages:
+            content = msg.get("content", "")
+            score = 0.0
+
+            # 长度评估（太短或太长都降低质量）
+            content_length = len(content.strip())
+            if 5 <= content_length <= 200:
+                score += 0.3
+            elif content_length > 200:
+                score += 0.1  # 过长消息质量较低
+
+            # 互动性评估（包含@、问号等）
+            if "@" in content or "？" in content or "?" in content:
+                score += 0.4
+
+            # 情感表达评估（包含表情符号、感叹号等）
+            if any(char in content for char in ["！", "!", "😊", "😂", "👍", "❤️"]):
+                score += 0.3
+
+            quality_scores.append(min(1.0, score))
+
+        return sum(quality_scores) / len(quality_scores) if quality_scores else 0.0
+
+    def _assess_topic_continuity(self, conversation_history: list, current_time: float) -> float:
+        """评估话题持续性"""
+        recent_messages = [msg for msg in conversation_history
+                          if current_time - msg.get("timestamp", 0) < 600]  # 最近10分钟
+
+        if len(recent_messages) < 3:
+            return 0.0
+
+        # 简单的话题持续性：检查是否有重复的用户交互
+        user_sequence = [msg.get("user_id", "") for msg in recent_messages[-10:]]
+        continuity_score = 0.0
+
+        # 检查连续对话模式
+        for i in range(len(user_sequence) - 1):
+            if user_sequence[i] == user_sequence[i + 1]:
+                continuity_score += 0.2  # 连续发言加分
+
+        # 检查回复模式（用户A -> 用户B -> 用户A）
+        if len(user_sequence) >= 3:
+            for i in range(len(user_sequence) - 2):
+                if (user_sequence[i] == user_sequence[i + 2] and
+                    user_sequence[i] != user_sequence[i + 1]):
+                    continuity_score += 0.3  # 回复模式加分
+
+        return min(1.0, continuity_score)
     
     def _calculate_continuity_bonus(self, user_id: str, chat_context: Dict) -> float:
         """计算连续对话奖励"""

@@ -24,18 +24,32 @@ class MemoryIntegration:
             logger.error(f"初始化 MemoraConnectPlugin 失败: {e}")
             return None
     
-    async def recall_memories(self, keywords: str, group_id: str = None, limit: int = None) -> List:
-        """回忆相关记忆"""
+    async def recall_memories(self, message_content: str, group_id: str = None, limit: int = None) -> List:
+        """基于内容语义回忆相关记忆（完全不使用关键词）"""
         if not getattr(self.config, 'memory_enabled', True) or not self.memora_plugin:
             return []
-        
+
         try:
             max_limit = limit or getattr(self.config, 'max_memories_recall', 10)
-            return await self.memora_plugin.recall_memories_api(
-                keywords=keywords,
-                group_id=group_id,
-                limit=max_limit
-            )
+
+            # 由于外部插件可能仍然使用关键词API，我们在这里进行转换
+            # 将消息内容转换为语义搜索，而不提取关键词
+            search_content = message_content.strip()
+
+            # 如果外部插件支持语义搜索API，使用语义搜索
+            if hasattr(self.memora_plugin, 'recall_memories_semantic_api'):
+                return await self.memora_plugin.recall_memories_semantic_api(
+                    content=search_content,
+                    group_id=group_id,
+                    limit=max_limit
+                )
+            else:
+                # 回退方案：使用整个消息内容作为关键词（但这不是真正的关键词搜索）
+                return await self.memora_plugin.recall_memories_api(
+                    keywords=search_content,
+                    group_id=group_id,
+                    limit=max_limit
+                )
         except Exception as e:
             logger.error(f"回忆记忆失败: {e}")
             return []

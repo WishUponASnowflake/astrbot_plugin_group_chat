@@ -1,15 +1,26 @@
 import time
 from collections import deque
 import random
+from typing import Dict, List, Any, Optional
+from pathlib import Path
+import json
 
 class FrequencyControl:
-    def __init__(self, group_id: str):
+    def __init__(self, group_id: str, state_manager: Optional[Any] = None):
         self.group_id = group_id
+        self.state_manager = state_manager
         self.historical_hourly_avg_users = [0.0] * 24
         self.historical_hourly_avg_msgs = [0.0] * 24
+
+        # 历史数据存储
+        self.hourly_message_counts = {hour: [] for hour in range(24)}  # 每个小时的消息计数历史
+        self.hourly_user_counts = {hour: [] for hour in range(24)}    # 每个小时的用户计数历史
+        self.daily_stats = {}  # 按日期存储的统计数据
+
         self.load_historical_data()
 
         self.recent_messages: deque[float] = deque(maxlen=100)  # 存储最近的消息时间戳
+        self.recent_users: set = set()  # 最近活跃的用户
         self.focus_value = 0.0
         self.last_update_time = time.time()
         self.at_message_boost = 0.0
@@ -17,24 +28,145 @@ class FrequencyControl:
         self.smoothing_factor = 0.1  # 用于平滑焦点值变化的因子
 
     def load_historical_data(self):
-        """加载或生成历史聊天活动数据。"""
-        # 在实际应用中，这将从数据库或日志中加载数据。
-        # 这里，我们生成一些模拟数据来模拟不同时间的活动。
-        for hour in range(24):
-            if 6 <= hour < 9:  # 早高峰
-                self.historical_hourly_avg_msgs[hour] = random.uniform(30, 50)
-            elif 12 <= hour < 14:  # 午间高峰
-                self.historical_hourly_avg_msgs[hour] = random.uniform(40, 60)
-            elif 20 <= hour < 23:  # 晚间高峰
-                self.historical_hourly_avg_msgs[hour] = random.uniform(50, 80)
-            else:  # 其他时间
-                self.historical_hourly_avg_msgs[hour] = random.uniform(5, 15)
-        print(f"为群组 {self.group_id} 加载了模拟的历史数据。")
+        """从历史数据加载或生成基础数据。"""
+        if self.state_manager:
+            # 尝试从状态管理器加载历史数据
+            historical_data = self.state_manager.get(f"frequency_data_{self.group_id}", {})
 
-    def update_message_rate(self, message_timestamp: float):
+            if historical_data and 'hourly_message_counts' in historical_data:
+                # 从数据加载
+                self.hourly_message_counts = historical_data.get('hourly_message_counts', self.hourly_message_counts)
+                self.hourly_user_counts = historical_data.get('hourly_user_counts', self.hourly_user_counts)
+                self.daily_stats = historical_data.get('daily_stats', {})
+
+                # 计算历史平均值
+                self._calculate_historical_averages()
+                print(f"为群组 {self.group_id} 加载了的历史数据。")
+                return
+
+        # 如果没有历史数据，使用智能默认值（基于群组类型和时间模式）
+        self._generate_smart_defaults()
+        print(f"为群组 {self.group_id} 生成了智能默认的历史数据。")
+
+    def _calculate_historical_averages(self):
+        """根据收集的历史数据计算平均值。"""
+        for hour in range(24):
+            msg_counts = self.hourly_message_counts.get(hour, [])
+            user_counts = self.hourly_user_counts.get(hour, [])
+
+            if msg_counts:
+                # 计算消息数的平均值
+                self.historical_hourly_avg_msgs[hour] = sum(msg_counts) / len(msg_counts)
+            else:
+                # 如果没有数据，使用智能默认值
+                self.historical_hourly_avg_msgs[hour] = self._get_smart_default_msgs(hour)
+
+            if user_counts:
+                # 计算用户数的平均值
+                self.historical_hourly_avg_users[hour] = sum(user_counts) / len(user_counts)
+            else:
+                # 如果没有数据，使用智能默认值
+                self.historical_hourly_avg_users[hour] = self._get_smart_default_users(hour)
+
+    def _generate_smart_defaults(self):
+        """生成基于时间模式的智能默认值。"""
+        for hour in range(24):
+            self.historical_hourly_avg_msgs[hour] = self._get_smart_default_msgs(hour)
+            self.historical_hourly_avg_users[hour] = self._get_smart_default_users(hour)
+
+    def _get_smart_default_msgs(self, hour: int) -> float:
+        """根据小时获取智能默认消息数。"""
+        # 基于真实群聊模式的默认值
+        if 7 <= hour <= 9:  # 早高峰（上班、上学时间）
+            return random.uniform(25, 45)
+        elif 11 <= hour <= 13:  # 午间高峰（午休时间）
+            return random.uniform(35, 55)
+        elif 17 <= hour <= 19:  # 晚高峰（下班时间）
+            return random.uniform(40, 65)
+        elif 20 <= hour <= 23:  # 晚上活跃时间
+            return random.uniform(45, 75)
+        elif 0 <= hour <= 2:  # 深夜
+            return random.uniform(10, 25)
+        else:  # 白天其他时间
+            return random.uniform(8, 20)
+
+    def _get_smart_default_users(self, hour: int) -> float:
+        """根据小时获取智能默认用户数。"""
+        # 用户数通常是消息数的0.6-0.8倍
+        msg_count = self._get_smart_default_msgs(hour)
+        return msg_count * random.uniform(0.6, 0.8)
+
+    def update_message_rate(self, message_timestamp: float, user_id: str = None):
         """记录一条新消息并更新频率指标。"""
         self.recent_messages.append(message_timestamp)
+
+        # 记录用户活跃度
+        if user_id:
+            self.recent_users.add(user_id)
+
+        # 收集历史数据
+        self._collect_historical_data(message_timestamp, user_id)
+
         self._update_focus()
+
+    def _collect_historical_data(self, timestamp: float, user_id: str = None):
+        """收集历史数据用于分析。"""
+        current_time = time.localtime(timestamp)
+        hour = current_time.tm_hour
+        date_str = time.strftime("%Y-%m-%d", current_time)
+
+        # 更新小时统计
+        if hour not in self.hourly_message_counts:
+            self.hourly_message_counts[hour] = []
+
+        # 限制每个小时最多保存30天的历史数据
+        if len(self.hourly_message_counts[hour]) >= 30:
+            self.hourly_message_counts[hour].pop(0)
+
+        self.hourly_message_counts[hour].append(1)  # 每次调用代表一条消息
+
+        # 更新用户统计
+        if user_id and hour not in self.hourly_user_counts:
+            self.hourly_user_counts[hour] = []
+
+        if user_id:
+            if len(self.hourly_user_counts[hour]) >= 30:
+                self.hourly_user_counts[hour].pop(0)
+            self.hourly_user_counts[hour].append(1)  # 每次调用代表一个活跃用户
+
+        # 更新每日统计
+        if date_str not in self.daily_stats:
+            self.daily_stats[date_str] = {
+                'total_messages': 0,
+                'total_users': 0,
+                'hourly_breakdown': {h: 0 for h in range(24)}
+            }
+
+        self.daily_stats[date_str]['total_messages'] += 1
+        self.daily_stats[date_str]['hourly_breakdown'][hour] += 1
+
+        if user_id:
+            self.daily_stats[date_str]['total_users'] += 1
+
+        # 定期保存数据（每10分钟或100条消息保存一次）
+        if len(self.recent_messages) % 100 == 0 or time.time() - getattr(self, '_last_save_time', 0) > 600:
+            self._save_historical_data()
+
+    def _save_historical_data(self):
+        """保存历史数据到状态管理器。"""
+        if not self.state_manager:
+            return
+
+        historical_data = {
+            'hourly_message_counts': self.hourly_message_counts,
+            'hourly_user_counts': self.hourly_user_counts,
+            'daily_stats': self.daily_stats,
+            'last_updated': time.time()
+        }
+
+        self.state_manager.set(f"frequency_data_{self.group_id}", historical_data)
+        self._last_save_time = time.time()
+        print(f"为群组 {self.group_id} 保存了历史数据。")
 
     def _update_focus(self):
         """根据当前聊天活动与历史基线的对比，更新焦点值。"""

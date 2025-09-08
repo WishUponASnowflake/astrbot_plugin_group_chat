@@ -36,7 +36,7 @@ class GroupChatPlugin(Star):
         self.state_manager = StateManager(context, config)
         
         # 初始化主动聊天管理器
-        self.active_chat_manager = ActiveChatManager(context)
+        self.active_chat_manager = ActiveChatManager(context, self.state_manager)
         
         # 初始化组件
         self.group_list_manager = GroupListManager(config)

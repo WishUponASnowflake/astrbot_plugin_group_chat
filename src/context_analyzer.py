@@ -37,9 +37,9 @@ class ContextAnalyzer:
         # 获取用户印象
         user_impression = await self.impression_manager.get_user_impression(user_id, group_id)
 
-        # 获取相关记忆
+        # 获取相关记忆（不使用关键词，基于内容语义）
         relevant_memories = await self.memory_integration.recall_memories(
-            keywords=event.message_str,
+            message_content=event.message_str,
             group_id=group_id
         )
 
