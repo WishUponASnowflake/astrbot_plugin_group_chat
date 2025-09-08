@@ -5,6 +5,8 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 import json
 
+from astrbot.api import logger
+
 class FrequencyControl:
     def __init__(self, group_id: str, state_manager: Optional[Any] = None):
         self.group_id = group_id
@@ -46,7 +48,7 @@ class FrequencyControl:
 
         # 如果没有历史数据，使用智能默认值（基于群组类型和时间模式）
         self._generate_smart_defaults()
-        print(f"为群组 {self.group_id} 生成了智能默认的历史数据。")
+        logger.info(f"为群组 {self.group_id} 生成了智能默认的历史数据。")
 
     def _calculate_historical_averages(self):
         """根据收集的历史数据计算平均值。"""

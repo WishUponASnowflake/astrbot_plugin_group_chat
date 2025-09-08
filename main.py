@@ -7,7 +7,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-# 添加src目录到Python路径
+# 添加src目录到Python路径 - 使用更安全的方式
 current_dir = Path(__file__).parent
 src_dir = current_dir / "src"
 if str(src_dir) not in sys.path:
@@ -54,7 +54,6 @@ class GroupChatPlugin(Star):
     @filter.on_astrbot_loaded()
     async def on_astrbot_loaded(self):
         """AstrBot 初始化完成后启动主动聊天管理器。"""
-        logger.info("AstrBot 已加载，正在启动 ActiveChatManager...")
         self.active_chat_manager.start_all_flows()
     
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)

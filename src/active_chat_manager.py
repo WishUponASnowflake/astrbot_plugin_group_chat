@@ -3,6 +3,7 @@ import time
 import re
 from typing import Dict, Any
 
+from astrbot.api import logger
 from frequency_control import FrequencyControl
 
 class GroupHeartFlow:
@@ -199,7 +200,7 @@ class ActiveChatManager:
             # 回退方案：智能检测活跃群组
             active_groups = self._detect_active_groups_from_history()
 
-        print(f"检测到 {len(active_groups)} 个活跃群组: {active_groups}")
+        logger.info(f"检测到 {len(active_groups)} 个活跃群组: {active_groups}")
 
         for group_id in active_groups:
             if group_id not in self.group_flows:
