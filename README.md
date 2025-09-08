@@ -1,86 +1,149 @@
 # AstrBot 群聊插件 (astrbot_plugin_group_chat)
 
-一个高级群聊交互插件，能像真人一样主动参与对话，实现拟人化的主动交互体验。
+一个**真正强大**的群聊交互插件，采用先进的AI算法实现拟人化的主动交互体验。
 
-## 🌟 主要特性
+## 🌟 核心特性
 
-### 核心功能
-- **智能回复决策**：基于多种因素计算回复意愿，包括用户印象、群活跃度、疲劳度等
-- **读空气功能**：使用LLM判断聊天氛围，决定是否回复，避免打扰
+### 🚀 先进的AI算法
+- **多维度活跃度分析**：基于时间窗口、用户参与度、消息质量、话题持续性等多重因素
+- **语义相关性检测**：采用结构化特征分析、上下文一致性、用户行为模式等智能方法
+- **动态人格关键词**：从机器人人格系统中智能提取关键词，实现个性化@检测
+- **真实历史数据驱动**：基于实际聊天记录进行学习和优化，不使用任何模拟数据
+
+### 🎯 智能回复决策系统
+- **读空气功能**：使用LLM判断聊天氛围，智能决定是否回复
+- **多因素意愿计算**：综合用户印象、群活跃度、疲劳度、连续对话等因素
+- **自适应阈值**：根据历史表现动态调整决策参数
+- **疲劳保护机制**：防止过度回复，保持自然交互节奏
+
+### 💬 高级交互模式
 - **专注聊天模式**：支持与特定用户的深度对话
-- **疲劳系统**：防止过度回复，保持自然交互
 - **观察模式**：在低活跃度群组中自动进入观察状态
+- **连续对话奖励**：智能识别和奖励连续对话
+- **消息质量评估**：基于长度、互动性、情感表达等维度评估消息价值
 
-## 📦 安装
+## 📦 安装与部署
 
-### 环境要求
-- AstrBot >= 3.4.0
-- Python >= 3.8
-
-### 安装步骤
-1. 将插件克隆到AstrBot的plugins目录：
+### 快速安装
 ```bash
+# 1. 克隆插件到AstrBot插件目录
 cd AstrBot/data/plugins
 git clone https://github.com/qa296/astrbot_plugin_group_chat.git
+
+# 2. 安装依赖（如果有）
+cd astrbot_plugin_group_chat
+pip install -r requirements.txt
+
+# 3. 重启AstrBot并在WebUI中启用插件
 ```
 
-2. 在AstrBot WebUI的插件管理页面启用插件
+### 验证安装
+插件启动后，您会在控制台看到：
+```
+群聊插件初始化完成
+为群组 xxx 加载了真实的历史数据
+检测到 x 个活跃群组: [...]
+```
 
-3. 根据需要配置插件参数
+## ⚙️ 配置详解
 
-## ⚙️ 配置说明
-
-### 基础配置
-- `list_mode`: 名单模式（blacklist/whitelist）
-- `groups`: 群组名单列表
-- `base_probability`: 基础回复概率 (0.0-1.0)
-- `willingness_threshold`: 回复意愿阈值 (0.0-1.0)
-- `max_consecutive_responses`: 最大连续回复次数
-
-### 高级功能
-- `air_reading_enabled`: 启用读空气功能
-- `focus_chat_enabled`: 启用专注聊天
-- `fatigue_enabled`: 启用疲劳系统
-- `memory_enabled`: 启用记忆系统（需要memora_connect插件）
-- `impression_enabled`: 启用印象系统（需要memora_connect插件）
-
-### 系统参数
-- `fatigue_decay_rate`: 疲劳度衰减率 (0.0-1.0)
-- `fatigue_reset_interval`: 疲劳度重置间隔（小时）
-- `observation_mode_threshold`: 观察模式阈值
-
-## 🚀 使用方法
+### 🎛️ 核心配置
+```json
+{
+  "list_mode": "blacklist",           // 名单模式：blacklist/whitelist
+  "groups": [],                      // 群组名单列表
+  "base_probability": 0.3,           // 基础回复概率 (0.0-1.0)
+  "willingness_threshold": 0.5,      // 回复意愿阈值 (0.0-1.0)
+  "max_consecutive_responses": 3,    // 最大连续回复次数
+  "air_reading_enabled": true,       // 启用读空气功能
+  "focus_chat_enabled": true,        // 启用专注聊天
+  "fatigue_enabled": true,           // 启用疲劳系统
+  "memory_enabled": false,           // 启用记忆系统（需要memora_connect）
+  "impression_enabled": false        // 启用印象系统（需要memora_connect）
+}
+```
 
 
-## 📁 文件结构
+## 🚀 工作原理
 
+### 📊 活跃度分析算法
+```
+活跃度分数 = 时间窗口权重 × 消息密度 + 用户参与度 × 多样性 + 消息质量 × 价值 + 话题持续性 × 连贯性
+```
+
+- **时间窗口分析**：1分钟(40%) + 5分钟(30%) + 30分钟(20%) + 1小时(10%)
+- **用户参与度**：活跃用户数 / 10（标准化到0-1）
+- **消息质量评估**：基于长度、标点密度、互动性、情感表达
+- **话题持续性**：分析用户交互模式和对话连贯性
+
+### 🎯 语义相关性检测
+采用五维智能分析：
+
+1. **结构化特征分析**：长度、标点密度、@提及、疑问句特征
+2. **上下文一致性分析**：用户交互模式、消息长度模式、时间间隔
+3. **用户行为模式分析**：互动频率、活跃度、响应模式
+4. **对话流分析**：对话节奏、话题连贯性
+5. **时间相关性分析**：消息间隔模式分析
+
+### 🧠 动态关键词系统
+- **人格提取**：从人格名称、描述、提示词中智能提取关键词
+- **配置覆盖**：支持通过配置自定义关键词
+- **智能回退**：自动降级到默认关键词确保稳定性
+
+## 📁 架构说明
+
+### 🏗️ 核心组件
 ```
 astrbot_plugin_group_chat/
-├── main.py                 # 主插件文件
-├── metadata.yaml          # 插件元数据
-├── _conf_schema.json      # 配置模式定义
-├── requirements.txt       # 依赖声明
-├── README.md             # 说明文档
-└── src/                  # 源代码目录
-    ├── state_manager.py      # 状态管理器
-    ├── context_analyzer.py   # 上下文分析器
-    ├── response_engine.py    # 回复引擎
-    ├── willingness_calculator.py  # 意愿计算器
-    ├── interaction_manager.py    # 交互管理器
-    ├── focus_chat_manager.py     # 专注聊天管理
-    ├── fatigue_system.py         # 疲劳系统
-    ├── impression_manager.py     # 印象管理器
-    ├── memory_integration.py     # 记忆集成
-    ├── group_list_manager.py     # 群组管理
-    └── utils.py                 # 工具函数
+├── main.py                    # 🎯 主插件入口
+├── _conf_schema.json         # ⚙️ 配置模式定义
+├── src/
+│   ├── active_chat_manager.py    # 🎮 主动聊天管理器
+│   ├── frequency_control.py      # 📊 频率控制（真实数据驱动）
+│   ├── willingness_calculator.py # 🧮 意愿计算器（多维度分析）
+│   ├── focus_chat_manager.py     # 🎯 专注聊天管理器
+│   ├── context_analyzer.py       # 🔍 上下文分析器
+│   ├── response_engine.py        # 💬 回复引擎
+│   ├── state_manager.py          # 💾 状态管理器
+│   ├── memory_integration.py     # 🧠 记忆集成
+│   └── impression_manager.py     # 👤 印象管理器
 ```
 
+### 🔄 数据流
+```
+消息接收 → 上下文分析 → 活跃度计算 → 意愿评估 → 相关性检测 → 回复决策 → 状态更新
+```
 
-## 🤝 贡献
+### 💾 数据存储
+- **实时状态**：内存缓存 + 文件持久化
+- **历史数据**：按群组和时间分片存储
+- **用户画像**：行为模式和偏好学习
+- **配置缓存**：动态配置热更新
 
-欢迎提交Issue和Pull Request！
+## 🎮 使用示例
 
-## 📞 联系
+### 基础使用
+1. **自动激活**：插件启动后自动开始监控活跃群组
+2. **智能回复**：根据计算的意愿值自动决定是否回复
+3. **疲劳保护**：自动控制回复频率避免过度打扰
 
-- GitHub: https://github.com/qa296/astrbot_plugin_group_chat
-- AstrBot社区: https://github.com/AstrBotDevs/AstrBot
+
+## 📈 版本历史
+
+### v1.0.0 (当前版本)
+- ✅ 实现真实历史数据驱动的频率控制
+- ✅ 多维度活跃度分析算法
+- ✅ 语义相关性检测
+- ✅ 动态人格关键词系统
+- ✅ 高级上下文管理和回复决策
+- ✅ 完整的状态持久化和配置系统
+
+## 📞 技术支持
+
+- **GitHub Issues**: https://github.com/qa296/astrbot_plugin_group_chat/issues
+- **AstrBot社区**: https://github.com/AstrBotDevs/AstrBot
+- **技术文档**: 详见源码注释和架构说明
+
+---
+
+**⭐ 如果这个插件对你有帮助，请给项目一个Star！**
