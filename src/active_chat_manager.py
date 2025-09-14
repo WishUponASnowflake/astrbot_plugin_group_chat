@@ -9,7 +9,7 @@ from frequency_control import FrequencyControl
 
 class GroupHeartFlow:
     HEARTBEAT_INTERVAL = 15  # 心跳检查间隔（秒）
-    COOLDOWN_SECONDS = 120   # 触发冷却（秒）
+    COOLDOWN_SECONDS = 5   # 触发冷却（秒）
 
     def __init__(
         self,
