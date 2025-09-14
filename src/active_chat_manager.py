@@ -4,31 +4,58 @@ import re
 from typing import Dict, Any
 
 from astrbot.api import logger
+from astrbot.api.event import MessageChain
 from frequency_control import FrequencyControl
 
 class GroupHeartFlow:
-    def __init__(self, group_id: str, context: Any, state_manager: Any = None):
+    HEARTBEAT_INTERVAL = 15  # 心跳检查间隔（秒）
+    COOLDOWN_SECONDS = 120   # 触发冷却（秒）
+
+    def __init__(
+        self,
+        group_id: str,
+        context: Any,
+        state_manager: Any = None,
+        response_engine: Any = None,
+        context_analyzer: Any = None,
+        willingness_calculator: Any = None,
+    ):
         self.group_id = group_id
         self.context = context
         self.state_manager = state_manager
+        self.response_engine = response_engine
+        self.context_analyzer = context_analyzer
+        self.willingness_calculator = willingness_calculator
+
         self.frequency_control = FrequencyControl(group_id, state_manager)
         self._task = None
+        self.last_trigger_ts = 0.0
+        self._last_user_id = None
+        self._last_message_str = ""
 
     async def _run_loop(self):
         """单个群组的主要主动聊天循环。"""
         while True:
-            if self.frequency_control.should_trigger_by_focus():
-                print(f"焦点触发器激活，为群组 {self.group_id} 发送消息。")
-                # 在这里，我们将调用实际的响应生成逻辑
-                # self.context.send_message(...)
-            else:
-                print(f"群组 {self.group_id} 的心跳 - 无动作")
-            
-            await asyncio.sleep(15)  # 检查频率
+            try:
+                if self.frequency_control.should_trigger_by_focus():
+                    now = time.time()
+                    if now - self.last_trigger_ts >= self.COOLDOWN_SECONDS:
+                        logger.info(f"[ActiveChat] 触发主动回复，群组 {self.group_id}")
+                        await self._trigger_active_response(self.group_id)
+                        self.last_trigger_ts = now
+                    else:
+                        logger.debug(f"[ActiveChat] 冷却中，群组 {self.group_id}")
+                else:
+                    logger.debug(f"[ActiveChat] 心跳 - 无动作 群组 {self.group_id}")
+            except Exception as e:
+                logger.error(f"[ActiveChat] 心跳循环异常 群组 {self.group_id}: {e}")
+            await asyncio.sleep(self.HEARTBEAT_INTERVAL)
 
     def on_message(self, event: Any):
         """处理传入的消息以更新频率控制。"""
         user_id = event.get_sender_id()
+        self._last_user_id = user_id
+        self._last_message_str = getattr(event, "message_str", "") or ""
         self.frequency_control.update_message_rate(time.time(), user_id)
 
         # 智能检查是否 @ 了机器人
@@ -176,10 +203,67 @@ class GroupHeartFlow:
             self._task = None
             print(f"已为群组 {self.group_id} 停止心跳")
 
+    async def _trigger_active_response(self, group_id: str):
+        """触发主动回复流程"""
+        try:
+            umo = self.state_manager.get_group_umo(group_id) if self.state_manager else None
+            if not umo:
+                logger.debug(f"[ActiveChat] 群组 {group_id} 未记录 UMO，跳过主动发送")
+                return
+
+            if not (self.response_engine and self.context_analyzer and self.willingness_calculator):
+                logger.debug(f"[ActiveChat] 依赖未就绪，跳过主动发送 群组 {group_id}")
+                return
+
+            event = self._create_virtual_event(group_id, umo)
+            chat_context = await self.context_analyzer.analyze_chat_context(event)
+            willingness_result = await self.willingness_calculator.calculate_response_willingness(event, chat_context)
+            response_result = await self.response_engine.generate_response(event, chat_context, willingness_result)
+
+            if response_result.get("should_reply"):
+                content = (response_result.get("content") or "").strip()
+                if content:
+                    await self._send_active_message(umo, content)
+                    logger.info(f"[ActiveChat] 群组 {group_id} 主动发送成功")
+                else:
+                    logger.debug(f"[ActiveChat] LLM 决定回复但内容为空，跳过 群组 {group_id}")
+            else:
+                logger.debug(f"[ActiveChat] LLM 决定不回复 群组 {group_id}")
+        except Exception as e:
+            logger.error(f"[ActiveChat] 主动回复异常 群组 {group_id}: {e}")
+
+    def _create_virtual_event(self, group_id: str, umo: str):
+        """构建用于主动流程的虚拟事件"""
+        last_uid = self._last_user_id or "virtual_user"
+        msg = self._last_message_str or "冒个泡～"
+        class VirtualEvent:
+            def __init__(self, gid, uid, msg, umo):
+                self._gid = gid
+                self._uid = uid
+                self.message_str = msg
+                self.unified_msg_origin = umo
+                self.is_at_or_wake_command = False
+            def get_group_id(self):
+                return self._gid
+            def get_sender_id(self):
+                return self._uid
+        return VirtualEvent(group_id, last_uid, msg, umo)
+
+    async def _send_active_message(self, umo: str, content: str):
+        """向指定会话发送主动消息"""
+        try:
+            chain = MessageChain().message(content)
+            await self.context.send_message(umo, chain)
+        except Exception as e:
+            logger.error(f"[ActiveChat] 发送主动消息失败: {e}")
+
 class ActiveChatManager:
-    def __init__(self, context: Any, state_manager: Any = None):
+    def __init__(self, context: Any, state_manager: Any = None, response_engine: Any = None, context_analyzer: Any = None, willingness_calculator: Any = None):
         self.context = context
         self.state_manager = state_manager
+        self.response_engine = response_engine
+        self.context_analyzer = context_analyzer
+        self.willingness_calculator = willingness_calculator
         self.group_flows: Dict[str, GroupHeartFlow] = {}
 
     def start_all_flows(self):
@@ -204,9 +288,30 @@ class ActiveChatManager:
 
         for group_id in active_groups:
             if group_id not in self.group_flows:
-                flow = GroupHeartFlow(group_id, self.context, self.state_manager)
+                flow = GroupHeartFlow(
+                    group_id,
+                    self.context,
+                    self.state_manager,
+                    response_engine=self.response_engine,
+                    context_analyzer=self.context_analyzer,
+                    willingness_calculator=self.willingness_calculator
+                )
                 self.group_flows[group_id] = flow
                 flow.start()
+
+    def ensure_flow(self, group_id: str):
+        """确保指定群组存在心跳流程"""
+        if group_id not in self.group_flows:
+            flow = GroupHeartFlow(
+                group_id,
+                self.context,
+                self.state_manager,
+                response_engine=self.response_engine,
+                context_analyzer=self.context_analyzer,
+                willingness_calculator=self.willingness_calculator
+            )
+            self.group_flows[group_id] = flow
+            flow.start()
 
     def _detect_active_groups_from_history(self) -> list:
         """从聊天历史中智能检测活跃群组。"""
@@ -253,6 +358,13 @@ class ActiveChatManager:
         # 为新群组启动流
         for group_id in group_ids:
             if group_id not in self.group_flows:
-                flow = GroupHeartFlow(group_id, self.context, self.state_manager)
+                flow = GroupHeartFlow(
+                    group_id,
+                    self.context,
+                    self.state_manager,
+                    response_engine=self.response_engine,
+                    context_analyzer=self.context_analyzer,
+                    willingness_calculator=self.willingness_calculator
+                )
                 self.group_flows[group_id] = flow
                 flow.start()

@@ -214,4 +214,4 @@ class FrequencyControl:
         """根据焦点值决定是否触发回复。"""
         # 这是一个简化的触发器；后续会进行改进
         effective_focus = self.get_focus() + self.at_message_boost
-        return effective_focus > 0.7
+        return effective_focus > 0.55

@@ -109,6 +109,20 @@ class StateManager:
         if group_id in targets:
             del targets[group_id]
             self.set("focus_targets", targets)
+
+    def get_group_umo_map(self) -> Dict[str, str]:
+        """获取群组会话标识映射（unified_msg_origin 映射）"""
+        return self.get("group_umo_map", {})
+
+    def set_group_umo(self, group_id: str, umo: str):
+        """记录群组的 unified_msg_origin，供主动消息发送使用"""
+        mapping = self.get_group_umo_map()
+        mapping[group_id] = umo
+        self.set("group_umo_map", mapping)
+
+    def get_group_umo(self, group_id: str) -> Optional[str]:
+        """获取群组的 unified_msg_origin"""
+        return self.get_group_umo_map().get(group_id)
     
     def get_fatigue_data(self) -> Dict[str, float]:
         """获取疲劳度数据"""

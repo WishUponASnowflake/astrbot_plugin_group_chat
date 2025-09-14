@@ -35,9 +35,6 @@ class GroupChatPlugin(Star):
         # 初始化状态管理器（符合文档要求的持久化存储）
         self.state_manager = StateManager(context, config)
         
-        # 初始化主动聊天管理器
-        self.active_chat_manager = ActiveChatManager(context, self.state_manager)
-        
         # 初始化组件
         self.group_list_manager = GroupListManager(config)
         self.impression_manager = ImpressionManager(context, config)
@@ -48,6 +45,15 @@ class GroupChatPlugin(Star):
         self.focus_chat_manager = FocusChatManager(context, config, self.state_manager)
         self.fatigue_system = FatigueSystem(config, self.state_manager)
         self.context_analyzer = ContextAnalyzer(context, config, self.state_manager, self.impression_manager, self.memory_integration)
+        
+        # 初始化主动聊天管理器（注入依赖）
+        self.active_chat_manager = ActiveChatManager(
+            context,
+            self.state_manager,
+            response_engine=self.response_engine,
+            context_analyzer=self.context_analyzer,
+            willingness_calculator=self.willingness_calculator
+        )
         
         logger.info("群聊插件初始化完成")
 
@@ -61,13 +67,16 @@ class GroupChatPlugin(Star):
         """处理群聊消息的主入口"""
         group_id = event.get_group_id()
         
-        # 将消息传递给 ActiveChatManager 以进行频率分析
-        if group_id in self.active_chat_manager.group_flows:
-            self.active_chat_manager.group_flows[group_id].on_message(event)
-
         # 1. 群组权限检查
         if not self.group_list_manager.check_group_permission(group_id):
             return
+        
+        # 记录会话标识并确保该群心跳存在
+        self.state_manager.set_group_umo(group_id, event.unified_msg_origin)
+        self.active_chat_manager.ensure_flow(group_id)
+        # 将消息传递给 ActiveChatManager 以进行频率分析
+        if group_id in self.active_chat_manager.group_flows:
+            self.active_chat_manager.group_flows[group_id].on_message(event)
         
         # 2. 处理消息
         async for result in self._process_group_message(event):
