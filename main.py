@@ -139,6 +139,41 @@ class GroupChatPlugin(Star):
         # 更新交互状态
         await self.interaction_manager.update_interaction_state(event, chat_context, response_result)
     
+    @filter.command("群聊主动状态")
+    async def gcstatus(self, event: AstrMessageEvent):
+        """显示当前群的主动对话状态"""
+        group_id = event.get_group_id()
+        if not group_id:
+            yield event.plain_result("请在群聊中使用此命令。")
+            return
+
+        # 确保会话映射与心跳存在
+        self.state_manager.set_group_umo(group_id, event.unified_msg_origin)
+        self.active_chat_manager.ensure_flow(group_id)
+
+        stats = self.active_chat_manager.get_stats(group_id)
+
+        has_flow = "✅" if stats.get("has_flow") else "❌"
+        has_umo = "✅" if stats.get("has_umo") else "❌"
+        focus = float(stats.get("focus", 0.0) or 0.0)
+        at_boost = float(stats.get("at_boost", 0.0) or 0.0)
+        effective = float(stats.get("effective", 0.0) or 0.0)
+        threshold = float(stats.get("threshold", 0.55) or 0.55)
+        mlm = int(stats.get("messages_last_minute", 0) or 0)
+        cd = float(stats.get("cooldown_remaining", 0.0) or 0.0)
+
+
+        msg = (
+            "主动对话状态\n"
+            f"心跳: {has_flow}    UMO: {has_umo}\n"
+            f"最近1分钟消息: {mlm}\n"
+            f"焦点: {focus:.2f}\n"
+            f"@增强: {at_boost:.2f}\n"
+            f"有效值/阈值: {effective:.2f} / {threshold:.2f}\n"
+            f"冷却剩余: {cd:.1f}s"
+        )
+        yield event.plain_result(msg)
+
     async def terminate(self):
         """插件终止时的清理工作"""
         logger.info("群聊插件正在终止...")

@@ -257,6 +257,28 @@ class GroupHeartFlow:
         except Exception as e:
             logger.error(f"[ActiveChat] 发送主动消息失败: {e}")
 
+    def get_stats(self) -> Dict[str, Any]:
+        """获取当前群组主动模块的状态"""
+        now = time.time()
+        cooldown_remaining = max(0.0, self.COOLDOWN_SECONDS - (now - self.last_trigger_ts)) if self.last_trigger_ts else 0.0
+        focus = self.frequency_control.get_focus()
+        at_boost = self.frequency_control.at_message_boost
+        effective = focus + at_boost
+        threshold = getattr(self.frequency_control, "threshold", 0.55)
+        messages_last_minute = self.frequency_control.get_messages_in_last_minute() if hasattr(self.frequency_control, "get_messages_in_last_minute") else 0
+        has_umo = self.state_manager.get_group_umo(self.group_id) is not None if self.state_manager else False
+        return {
+            "group_id": self.group_id,
+            "has_umo": has_umo,
+            "last_trigger_ts": self.last_trigger_ts,
+            "cooldown_remaining": cooldown_remaining,
+            "focus": focus,
+            "at_boost": at_boost,
+            "effective": effective,
+            "threshold": threshold,
+            "messages_last_minute": messages_last_minute,
+        }
+
 class ActiveChatManager:
     def __init__(self, context: Any, state_manager: Any = None, response_engine: Any = None, context_analyzer: Any = None, willingness_calculator: Any = None):
         self.context = context
@@ -312,6 +334,35 @@ class ActiveChatManager:
             )
             self.group_flows[group_id] = flow
             flow.start()
+
+    async def trigger_now(self, group_id: str):
+        """立刻对指定群执行一次主动回复（绕过阈值与冷却）"""
+        self.ensure_flow(group_id)
+        flow = self.group_flows[group_id]
+        await flow._trigger_active_response(group_id)
+        flow.last_trigger_ts = time.time()
+
+    def get_stats(self, group_id: str) -> Dict[str, Any]:
+        """获取指定群当前的主动模块状态"""
+        flow = self.group_flows.get(group_id)
+        if not flow:
+            return {
+                "group_id": group_id,
+                "has_flow": False
+            }
+        stats = flow.get_stats()
+        stats["has_flow"] = True
+        return stats
+
+    def set_threshold(self, group_id: str, value: float) -> bool:
+        """设置指定群的触发阈值"""
+        flow = self.group_flows.get(group_id)
+        if not flow:
+            return False
+        if hasattr(flow.frequency_control, "set_threshold"):
+            flow.frequency_control.set_threshold(value)
+            return True
+        return False
 
     def _detect_active_groups_from_history(self) -> list:
         """从聊天历史中智能检测活跃群组。"""

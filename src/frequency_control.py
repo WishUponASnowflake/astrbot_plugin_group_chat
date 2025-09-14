@@ -28,6 +28,7 @@ class FrequencyControl:
         self.at_message_boost = 0.0
         self.at_message_boost_decay = 0.95
         self.smoothing_factor = 0.1  # 用于平滑焦点值变化的因子
+        self.threshold = 0.55  # 触发阈值（可运行期调整）
 
     def load_historical_data(self):
         """从历史数据加载或生成基础数据。"""
@@ -210,8 +211,25 @@ class FrequencyControl:
         self._update_focus()
         return self.focus_value
 
+    def get_messages_in_last_minute(self) -> int:
+        """最近一分钟消息条数"""
+        current_time = time.time()
+        return len([t for t in self.recent_messages if current_time - t <= 60])
+
+    def set_threshold(self, value: float):
+        """设置触发阈值（0-1）"""
+        try:
+            v = float(value)
+        except Exception:
+            return
+        self.threshold = max(0.0, min(1.0, v))
+
     def should_trigger_by_focus(self) -> bool:
         """根据焦点值决定是否触发回复。"""
-        # 这是一个简化的触发器；后续会进行改进
         effective_focus = self.get_focus() + self.at_message_boost
-        return effective_focus > 0.55
+        # 快速路径：消息频度或 @ 提升触发
+        if self.get_messages_in_last_minute() >= 2 or self.at_message_boost >= 0.3:
+            return True
+        # 常规路径：比较阈值
+        threshold = getattr(self, "threshold", 0.55)
+        return effective_focus > threshold
