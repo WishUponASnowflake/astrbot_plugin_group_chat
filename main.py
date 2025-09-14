@@ -26,7 +26,7 @@ from fatigue_system import FatigueSystem
 from context_analyzer import ContextAnalyzer
 from state_manager import StateManager
 
-@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.0", "https://github.com/qa296/astrbot_plugin_group_chat")
+@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.1", "https://github.com/qa296/astrbot_plugin_group_chat")
 class GroupChatPlugin(Star):
     def __init__(self, context: Context, config: Any):
         super().__init__(context)
