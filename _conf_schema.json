@@ -94,5 +94,15 @@
     "description": "疲劳度重置间隔（小时）",
     "type": "int",
     "default": 6
+  },
+  "heartbeat_threshold": {
+    "description": "主动心跳触发门槛（0-1，越低越容易触发）",
+    "type": "float",
+    "default": 0.55
+  },
+  "at_boost_value": {
+    "description": "被@时一次性增强幅度（0-1）",
+    "type": "float",
+    "default": 0.5
   }
 }

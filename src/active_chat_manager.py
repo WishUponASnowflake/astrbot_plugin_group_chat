@@ -19,6 +19,7 @@ class GroupHeartFlow:
         response_engine: Any = None,
         context_analyzer: Any = None,
         willingness_calculator: Any = None,
+        plugin_config: Any = None,
     ):
         self.group_id = group_id
         self.context = context
@@ -26,8 +27,9 @@ class GroupHeartFlow:
         self.response_engine = response_engine
         self.context_analyzer = context_analyzer
         self.willingness_calculator = willingness_calculator
+        self.plugin_config = plugin_config
 
-        self.frequency_control = FrequencyControl(group_id, state_manager)
+        self.frequency_control = FrequencyControl(group_id, state_manager, config=self.plugin_config)
         self._task = None
         self.last_trigger_ts = 0.0
         self._last_user_id = None
@@ -280,12 +282,13 @@ class GroupHeartFlow:
         }
 
 class ActiveChatManager:
-    def __init__(self, context: Any, state_manager: Any = None, response_engine: Any = None, context_analyzer: Any = None, willingness_calculator: Any = None):
+    def __init__(self, context: Any, state_manager: Any = None, response_engine: Any = None, context_analyzer: Any = None, willingness_calculator: Any = None, plugin_config: Any = None):
         self.context = context
         self.state_manager = state_manager
         self.response_engine = response_engine
         self.context_analyzer = context_analyzer
         self.willingness_calculator = willingness_calculator
+        self.plugin_config = plugin_config
         self.group_flows: Dict[str, GroupHeartFlow] = {}
 
     def start_all_flows(self):
@@ -316,7 +319,8 @@ class ActiveChatManager:
                     self.state_manager,
                     response_engine=self.response_engine,
                     context_analyzer=self.context_analyzer,
-                    willingness_calculator=self.willingness_calculator
+                    willingness_calculator=self.willingness_calculator,
+                    plugin_config=self.plugin_config
                 )
                 self.group_flows[group_id] = flow
                 flow.start()
@@ -330,7 +334,8 @@ class ActiveChatManager:
                 self.state_manager,
                 response_engine=self.response_engine,
                 context_analyzer=self.context_analyzer,
-                willingness_calculator=self.willingness_calculator
+                willingness_calculator=self.willingness_calculator,
+                plugin_config=self.plugin_config
             )
             self.group_flows[group_id] = flow
             flow.start()
@@ -415,7 +420,8 @@ class ActiveChatManager:
                     self.state_manager,
                     response_engine=self.response_engine,
                     context_analyzer=self.context_analyzer,
-                    willingness_calculator=self.willingness_calculator
+                    willingness_calculator=self.willingness_calculator,
+                    plugin_config=self.plugin_config
                 )
                 self.group_flows[group_id] = flow
                 flow.start()

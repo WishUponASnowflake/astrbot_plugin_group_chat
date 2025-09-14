@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Any, AsyncGenerator
 import sys
 import os
+import time
 from pathlib import Path
 
 from astrbot.api.event import filter, AstrMessageEvent
@@ -26,7 +27,7 @@ from fatigue_system import FatigueSystem
 from context_analyzer import ContextAnalyzer
 from state_manager import StateManager
 
-@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.1", "https://github.com/qa296/astrbot_plugin_group_chat")
+@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.2", "https://github.com/qa296/astrbot_plugin_group_chat")
 class GroupChatPlugin(Star):
     _instance = None
     def __init__(self, context: Context, config: Any):
@@ -55,7 +56,8 @@ class GroupChatPlugin(Star):
             self.state_manager,
             response_engine=self.response_engine,
             context_analyzer=self.context_analyzer,
-            willingness_calculator=self.willingness_calculator
+            willingness_calculator=self.willingness_calculator,
+            plugin_config=self.config
         )
         
         logger.info("群聊插件初始化完成")
@@ -158,19 +160,48 @@ class GroupChatPlugin(Star):
         focus = float(stats.get("focus", 0.0) or 0.0)
         at_boost = float(stats.get("at_boost", 0.0) or 0.0)
         effective = float(stats.get("effective", 0.0) or 0.0)
-        threshold = float(stats.get("threshold", 0.55) or 0.55)
         mlm = int(stats.get("messages_last_minute", 0) or 0)
         cd = float(stats.get("cooldown_remaining", 0.0) or 0.0)
+        last_ts = float(stats.get("last_trigger_ts", 0.0) or 0.0)
+        elapsed = (time.time() - last_ts) if last_ts > 0 else 0.0
 
+        # 配置值
+        hb_thr = float(getattr(self.config, "heartbeat_threshold", 0.55) or 0.55)
+        wil_thr = float(getattr(self.config, "willingness_threshold", 0.5) or 0.5)
+        obs_thr = float(getattr(self.config, "observation_mode_threshold", 0.2) or 0.2)
+        min_interest = float(getattr(self.config, "min_interest_score", 0.6) or 0.6)
+        at_boost_cfg = float(getattr(self.config, "at_boost_value", 0.5) or 0.5)
+
+        # 计算意愿分与群活跃度
+        chat_context = await self.context_analyzer.analyze_chat_context(event)
+        will_res = await self.willingness_calculator.calculate_response_willingness(event, chat_context)
+        willingness_score = float(will_res.get("willingness_score", 0.0) or 0.0)
+        decision_ctx = will_res.get("decision_context", {}) or {}
+        group_activity = float(decision_ctx.get("group_activity", 0.0) or 0.0)
+
+        # 评估专注兴趣度
+        try:
+            interest = float(await self.focus_chat_manager.evaluate_focus_interest(event, chat_context))
+        except Exception:
+            interest = 0.0
+
+        # 从 flow 读取心跳/冷却常量（回退到默认）
+        flow = self.active_chat_manager.group_flows.get(group_id)
+        hb_int = getattr(flow, "HEARTBEAT_INTERVAL", 15) if flow else 15
+        cd_total = getattr(flow, "COOLDOWN_SECONDS", 120) if flow else 120
 
         msg = (
             "主动对话状态\n"
             f"心跳: {has_flow}    UMO: {has_umo}\n"
             f"最近1分钟消息: {mlm}\n"
             f"焦点: {focus:.2f}\n"
-            f"@增强: {at_boost:.2f}\n"
-            f"有效值/阈值: {effective:.2f} / {threshold:.2f}\n"
-            f"冷却剩余: {cd:.1f}s"
+            f"@增强(当前/设定): {at_boost:.2f} / {at_boost_cfg:.2f}\n"
+            f"心跳: ({effective:.2f}/{hb_thr:.2f})\n"
+            f"意愿: ({willingness_score:.2f}/{wil_thr:.2f})\n"
+            f"观察: ({group_activity:.2f}/{obs_thr:.2f})\n"
+            f"专注: ({interest:.2f}/{min_interest:.2f})\n"
+            f"冷却剩余: {cd:.1f}s  上次触发: {elapsed:.1f}s\n"
+            f"心跳/冷却: {hb_int}s / {cd_total}s"
         )
         yield event.plain_result(msg)
 

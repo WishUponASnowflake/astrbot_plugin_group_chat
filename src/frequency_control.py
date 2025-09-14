@@ -8,9 +8,10 @@ import json
 from astrbot.api import logger
 
 class FrequencyControl:
-    def __init__(self, group_id: str, state_manager: Optional[Any] = None):
+    def __init__(self, group_id: str, state_manager: Optional[Any] = None, config: Optional[Any] = None):
         self.group_id = group_id
         self.state_manager = state_manager
+        self.config = config
         self.historical_hourly_avg_users = [0.0] * 24
         self.historical_hourly_avg_msgs = [0.0] * 24
 
@@ -28,7 +29,9 @@ class FrequencyControl:
         self.at_message_boost = 0.0
         self.at_message_boost_decay = 0.95
         self.smoothing_factor = 0.1  # 用于平滑焦点值变化的因子
-        self.threshold = 0.55  # 触发阈值（可运行期调整）
+        # 从配置读取参数（如无配置则使用默认）
+        self.at_boost_value = float(getattr(self.config, "at_boost_value", 0.5)) if self.config is not None else 0.5
+        self.threshold = float(getattr(self.config, "heartbeat_threshold", 0.55)) if self.config is not None else 0.55  # 触发阈值（可运行期调整）
 
     def load_historical_data(self):
         """从历史数据加载或生成基础数据。"""
@@ -203,7 +206,7 @@ class FrequencyControl:
 
     def boost_on_at(self):
         """当机器人被 @ 时，临时提高焦点值。"""
-        self.at_message_boost = 0.5  # 设置一个初始增强值
+        self.at_message_boost = float(self.at_boost_value)  # 使用配置的初始增强值
         print(f"机器人被 @，为群组 {self.group_id} 临时提高焦点。")
 
     def get_focus(self) -> float:
