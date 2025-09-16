@@ -13,6 +13,7 @@
 ### 🎯 智能回复决策系统
 - **读空气功能**：使用LLM判断聊天氛围，智能决定是否回复
 - **多因素意愿计算**：综合用户印象、群活跃度、疲劳度、连续对话等因素
+- **心流算法**：能量系统管理回复节奏，动态调整阈值和冷却时间
 - **自适应阈值**：根据历史表现动态调整决策参数
 - **疲劳保护机制**：防止过度回复，保持自然交互节奏
 
@@ -49,10 +50,21 @@ pip install -r requirements.txt
   "willingness_threshold": 0.5,      // 回复意愿阈值 (0.0-1.0)
   "max_consecutive_responses": 3,    // 最大连续回复次数
   "air_reading_enabled": true,       // 启用读空气功能
+  "air_reading_no_reply_marker": "[DO_NOT_REPLY]", // 读空气不回复标记
   "focus_chat_enabled": true,        // 启用专注聊天
+  "min_interest_score": 0.6,         // 最小兴趣度分数
+  "focus_timeout_seconds": 300,      // 专注聊天超时时间（秒）
+  "focus_max_responses": 10,         // 专注聊天最大回复次数
   "fatigue_enabled": true,           // 启用疲劳系统
+  "fatigue_threshold": 5,            // 疲劳阈值
+  "fatigue_decay_rate": 0.5,         // 疲劳度衰减率（每小时衰减的比例）
+  "fatigue_reset_interval": 6,       // 疲劳度重置间隔（小时）
   "memory_enabled": false,           // 启用记忆系统（需要memora_connect）
-  "impression_enabled": false        // 启用印象系统（需要memora_connect）
+  "max_memories_recall": 10,         // 最大回忆记忆数量
+  "impression_enabled": false,       // 启用印象系统（需要memora_connect）
+  "observation_mode_threshold": 0.2, // 观察模式阈值（群活跃度低于此值时进入观察）
+  "heartbeat_threshold": 0.55,       // 主动心跳触发门槛（0-1，越低越容易触发）
+  "at_boost_value": 0.5              // 被@时一次性增强幅度（0-1）
 }
 ```
 
@@ -81,7 +93,16 @@ pip install -r requirements.txt
 ### 🧠 动态关键词系统
 - **人格提取**：从人格名称、描述、提示词中智能提取关键词
 - **配置覆盖**：支持通过配置自定义关键词
-- **智能回退**：自动降级到默认关键词确保稳定性
+
+### ⚡ 心流算法
+采用能量系统实现自然对话节奏：
+
+- **能量管理**：回复消耗能量，活跃度恢复能量，保持0.1-1.0范围
+- **动态冷却**：根据群活跃度调整冷却时间，活跃时缩短冷却
+- **@增强**：被@时立即获得0.5能量提升
+- **连续惩罚**：连续回复增加阈值，防止刷屏
+- **相似度奖励**：与最近回复相似度高的消息获得额外奖励
+- **时间节奏**：距离上次回复越近，阈值越高，实现自然间隔
 
 ## 📁 架构说明
 
@@ -92,14 +113,18 @@ astrbot_plugin_group_chat/
 ├── _conf_schema.json         # ⚙️ 配置模式定义
 ├── src/
 │   ├── active_chat_manager.py    # 🎮 主动聊天管理器
-│   ├── frequency_control.py      # 📊 频率控制（历史数据驱动）
-│   ├── willingness_calculator.py # 🧮 意愿计算器（多维度分析）
-│   ├── focus_chat_manager.py     # 🎯 专注聊天管理器
 │   ├── context_analyzer.py       # 🔍 上下文分析器
+│   ├── fatigue_system.py         # 😴 疲劳系统
+│   ├── focus_chat_manager.py     # 🎯 专注聊天管理器
+│   ├── frequency_control.py      # 📊 频率控制（历史数据驱动）
+│   ├── group_list_manager.py     # 📋 群组名单管理器
+│   ├── impression_manager.py     # 👤 印象管理器
+│   ├── interaction_manager.py    # 💬 交互模式管理器
+│   ├── memory_integration.py     # 🧠 记忆集成
 │   ├── response_engine.py        # 💬 回复引擎
 │   ├── state_manager.py          # 💾 状态管理器
-│   ├── memory_integration.py     # 🧠 记忆集成
-│   └── impression_manager.py     # 👤 印象管理器
+│   ├── utils.py                  # 🛠️ 工具函数
+│   └── willingness_calculator.py # 🧮 意愿计算器（多维度分析+心流算法）
 ```
 
 ### 🔄 数据流
@@ -120,10 +145,32 @@ astrbot_plugin_group_chat/
 2. **智能回复**：根据计算的意愿值自动决定是否回复
 3. **疲劳保护**：自动控制回复频率避免过度打扰
 
+### 状态查询命令
+- **群聊主动状态**：在群聊中发送此命令可查看当前群的详细状态信息，包括：
+  - 心跳和UMO映射状态
+  - 最近1分钟消息数量
+  - 专注度、@增强、有效心跳值
+  - 意愿分数和群活跃度
+  - 观察模式和专注兴趣度
+  - 冷却剩余时间和上次触发时间
+  - 心跳间隔和冷却时间配置
+
 
 ## 📈 版本历史
 
-### v1.0.0 (当前版本)
+### v1.0.3 (当前版本)
+- ✅ 新增心流算法：能量系统和动态节奏控制
+- ✅ 智能相似度计算：连续对话奖励机制
+- ✅ 动态人格注入：缓存机制和自动注入
+- ✅ 新增`群聊主动状态`命令：实时状态查询
+- ✅ 扩展配置系统：新增疲劳衰减、心跳阈值等参数
+
+### v1.0.2
+- ✅ 优化状态管理器持久化机制
+- ✅ 改进交互模式管理
+- ✅ 增强读空气功能稳定性
+
+### v1.0.0
 - ✅ 实现历史数据驱动的频率控制
 - ✅ 多维度活跃度分析算法
 - ✅ 语义相关性检测

@@ -27,7 +27,7 @@ from fatigue_system import FatigueSystem
 from context_analyzer import ContextAnalyzer
 from state_manager import StateManager
 
-@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.2", "https://github.com/qa296/astrbot_plugin_group_chat")
+@register("astrbot_plugin_group_chat", "qa296", "一个先进的群聊交互插件，采用AI算法实现智能回复决策，能像真人一样主动参与对话，实现拟人化的主动交互体验。", "1.0.3", "https://github.com/qa296/astrbot_plugin_group_chat")
 class GroupChatPlugin(Star):
     _instance = None
     def __init__(self, context: Context, config: Any):
@@ -123,10 +123,13 @@ class GroupChatPlugin(Star):
             response_content = response_result.get("content")
             if response_content:
                 yield event.plain_result(response_content)
-                
+
                 # 更新连续回复计数
                 self.state_manager.increment_consecutive_response(group_id)
-                
+
+                # 心流算法：回复成功后更新状态
+                await self.willingness_calculator.on_bot_reply_update(event, len(response_content))
+
                 # 记录决策信息（用于调试）
                 decision_method = response_result.get("decision_method")
                 willingness_score = response_result.get("willingness_score")
@@ -140,6 +143,45 @@ class GroupChatPlugin(Star):
         
         # 更新交互状态
         await self.interaction_manager.update_interaction_state(event, chat_context, response_result)
+
+    # 读空气功能：处理LLM回复，进行文本过滤
+    from astrbot.api.provider import LLMResponse
+    @filter.on_llm_response()
+    async def on_llm_response(self, event: AstrMessageEvent, resp: LLMResponse):
+        """处理大模型回复，进行文本过滤"""
+        try:
+            if resp.role != "assistant":
+                return
+            # 这里可以添加文本过滤逻辑，目前保持简单
+            # resp.completion_text = self._filter_text(resp.completion_text)
+        except Exception as e:
+            logger.error(f"处理LLM回复时发生错误: {e}")
+
+    # 读空气功能：在消息发送前检查是否包含<NO_RESPONSE>标记
+    @filter.on_decorating_result()
+    async def on_decorating_result(self, event: AstrMessageEvent):
+        """在消息发送前处理读空气功能"""
+        try:
+            result = event.get_result()
+            if result is None or not result.chain:
+                return
+
+            # 检查是否为LLM结果且包含<NO_RESPONSE>标记
+            if result.is_llm_result():
+                # 获取消息文本内容
+                message_text = ""
+                for comp in result.chain:
+                    if hasattr(comp, 'text'):
+                        message_text += comp.text
+
+                # 如果包含<NO_RESPONSE>标记，清空事件结果以阻止消息发送
+                if "<NO_RESPONSE>" in message_text:
+                    logger.debug("检测到读空气标记<NO_RESPONSE>，阻止消息发送")
+                    event.clear_result()
+                    logger.debug("已清空事件结果，消息发送被阻止")
+
+        except Exception as e:
+            logger.error(f"处理消息发送前事件时发生错误: {e}")
     
     @filter.command("群聊主动状态")
     async def gcstatus(self, event: AstrMessageEvent):

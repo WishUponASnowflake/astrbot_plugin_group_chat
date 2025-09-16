@@ -1,5 +1,5 @@
-import json
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict
 
 from astrbot.api import logger
 from astrbot.api.star import Context
@@ -10,19 +10,21 @@ class ResponseEngine:
     回复引擎：负责决定是否回复以及生成回复内容。
     核心功能包括传统的阈值判断和基于LLM的"读空气"判断。
     """
-    
+
     def __init__(self, context: Context, config: Any):
         """
         初始化回复引擎。
-        
+
         Args:
             context: AstrBot的上下文对象，提供访问核心组件的接口。
             config: 插件的配置对象，从_conf_schema.json加载。
         """
         self.context = context
         self.config = config
+        # 人格缓存：{persona_name: {"prompt": str, "timestamp": float}}
+        self._persona_cache = {}
     
-    async def generate_response(self, event: Any, chat_context: Dict, willingness_result: Dict) -> Dict:
+    async def generate_response(self, event: Any, chat_context: Dict[str, Any], willingness_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         生成回复的主入口函数。
         根据意愿计算的结果，决定是使用传统阈值判断还是LLM“读空气”来判断是否回复。
@@ -61,7 +63,109 @@ class ResponseEngine:
                     "willingness_score": willingness_result.get("willingness_score")
                 }
     
-    async def _generate_with_air_reading(self, event: Any, chat_context: Dict, willingness_result: Dict) -> Dict:
+    async def _resolve_persona_text(self, event: Any) -> Dict[str, Any]:
+        """
+        解析当前会话的人格设定（若有），返回用于注入的提示词。
+        加入缓存机制避免重复解析。
+        返回: {"enabled": bool, "persona_name": str, "persona_prompt": str}
+        """
+        try:
+            # 可通过配置关闭注入
+            if isinstance(self.config, dict) and not self.config.get("enable_persona_injection", True):
+                return {"enabled": False, "persona_name": "", "persona_prompt": ""}
+
+            pm = getattr(self.context, "provider_manager", None)
+            if not pm:
+                return {"enabled": False, "persona_name": "", "persona_prompt": ""}
+
+            uid = getattr(event, "unified_msg_origin", None)
+            conversation = None
+            if uid:
+                try:
+                    cid = await self.context.conversation_manager.get_curr_conversation_id(uid)
+                    if cid:
+                        conversation = await self.context.conversation_manager.get_conversation(uid, cid)
+                except Exception:
+                    conversation = None
+
+            persona_id = getattr(conversation, "persona_id", None)
+            # 显式取消人格
+            if persona_id == "[%None]":
+                return {"enabled": False, "persona_name": "", "persona_prompt": ""}
+
+            # 选择 persona 名
+            if persona_id:
+                persona_name = persona_id
+            else:
+                selected = getattr(pm, "selected_default_persona", {}) or {}
+                persona_name = selected.get("name", "")
+
+            if not persona_name:
+                return {"enabled": False, "persona_name": "", "persona_prompt": ""}
+
+            # 检查缓存（学习Heartflow的缓存机制）
+            current_time = time.time()
+            cache_key = persona_name
+            if cache_key in self._persona_cache:
+                cached = self._persona_cache[cache_key]
+                # 缓存5分钟内有效
+                if current_time - cached.get("timestamp", 0) < 300:
+                    logger.debug(f"使用人格缓存: {persona_name}")
+                    return {
+                        "enabled": True,
+                        "persona_name": persona_name,
+                        "persona_prompt": cached["prompt"]
+                    }
+
+            # 缓存未命中，正常解析
+            personas = getattr(pm, "personas", {})
+            persona_data = None
+            # personas 可能是 dict 或 list
+            if isinstance(personas, dict):
+                persona_data = personas.get(persona_name)
+            else:
+                try:
+                    for p in personas:
+                        name = getattr(p, "name", None) if hasattr(p, "name") else (p.get("name") if isinstance(p, dict) else None)
+                        if name == persona_name:
+                            persona_data = p
+                            break
+                except Exception:
+                    persona_data = None
+
+            if not persona_data:
+                return {"enabled": False, "persona_name": persona_name, "persona_prompt": ""}
+
+            # 取 prompt 或 description
+            if isinstance(persona_data, dict):
+                prompt = persona_data.get("prompt") or persona_data.get("description") or ""
+            else:
+                prompt = getattr(persona_data, "prompt", "") or getattr(persona_data, "description", "") or ""
+
+            if not prompt:
+                return {"enabled": False, "persona_name": persona_name, "persona_prompt": ""}
+
+            # 写入缓存
+            self._persona_cache[cache_key] = {
+                "prompt": prompt,
+                "timestamp": current_time
+            }
+
+            return {"enabled": True, "persona_name": persona_name, "persona_prompt": prompt}
+        except Exception:
+            return {"enabled": False, "persona_name": "", "persona_prompt": ""}
+
+    def _compose_system_prompt_with_persona(self, base_prompt: str, persona: Dict[str, Any]) -> str:
+        """
+        将人格前缀与基础 system prompt 组合。
+        """
+        if persona and persona.get("enabled") and persona.get("persona_prompt"):
+            name = persona.get("persona_name", "")
+            preface = f"【人格设定：{name}】\n{persona.get('persona_prompt','')}\n\n"
+            return preface + base_prompt
+        return base_prompt
+
+    async def _generate_with_air_reading(self, event: Any, chat_context: Dict[str, Any], willingness_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         实现基于LLM的“读空气”功能，让LLM决定是否回复。
         
@@ -78,12 +182,12 @@ class ResponseEngine:
         air_reading_prompt = await self._build_air_reading_prompt(event, chat_context, willingness_result)
         
         # 调用 LLM 进行读空气决策
-        llm_response = await self._call_llm_for_air_reading(air_reading_prompt)
+        llm_response = await self._call_llm_for_air_reading(air_reading_prompt, event)
         
         # 检查LLM的回复是否是“不回复”的标记
-        no_reply_marker = self.config.get("air_reading_no_reply_marker", "[DO_NOT_REPLY]")
-        
-        if llm_response.strip() == no_reply_marker:
+        no_reply_marker = "<NO_RESPONSE>"
+
+        if no_reply_marker in llm_response.strip():
             logger.info(f"ResponseEngine: LLM决定跳过回复。")
             return {
                 "should_reply": False,
@@ -104,7 +208,7 @@ class ResponseEngine:
                 "willingness_score": willingness_result.get("willingness_score")
             }
     
-    async def _build_air_reading_prompt(self, event: Any, chat_context: Dict, willingness_result: Dict) -> str:
+    async def _build_air_reading_prompt(self, event: Any, chat_context: Dict[str, Any], willingness_result: Dict[str, Any]) -> str:
         """
         为“读空气”功能构建发送给LLM的提示词。
         
@@ -180,7 +284,7 @@ class ResponseEngine:
         return prompt
 
 
-    async def _call_llm_for_air_reading(self, prompt: str) -> str:
+    async def _call_llm_for_air_reading(self, prompt: str, event: Any) -> str:
         """
         调用LLM进行“读空气”决策。
         
@@ -199,11 +303,14 @@ class ResponseEngine:
             logger.debug("ResponseEngine: 正在调用LLM提供商进行读空气...")
             # 使用 AstrBot 的 LLM 调用接口
             # 注意：这里不传入历史对话记录，因为读空气是一个独立的判断过程
+            base_sys_prompt = "你是一个极其擅长'读空气'的聊天助手。你的核心任务是判断在特定聊天场景下，回复是否恰当。你需要理解社交暗示、聊天氛围和人际关系，从而做出最合适的决定：回复或保持沉默。"
+            persona = await self._resolve_persona_text(event)
+            sys_prompt = self._compose_system_prompt_with_persona(base_sys_prompt, persona)
             llm_response = await provider.text_chat(
                 prompt=prompt,
                 contexts=[], # 读空气是独立判断，不依赖历史对话
                 image_urls=[],
-                system_prompt="你是一个极其擅长'读空气'的聊天助手。你的核心任务是判断在特定聊天场景下，回复是否恰当。你需要理解社交暗示、聊天氛围和人际关系，从而做出最合适的决定：回复或保持沉默。"
+                system_prompt=sys_prompt
             )
             
             if llm_response and llm_response.completion_text:
@@ -217,7 +324,7 @@ class ResponseEngine:
             logger.error(f"ResponseEngine: LLM 读空气调用过程中发生异常: {e}", exc_info=True)
             return ""  # 出错时默认不回复，保证系统稳定性
     
-    async def _generate_normal_response(self, event: Any, chat_context: Dict) -> str:
+    async def _generate_normal_response(self, event: Any, chat_context: Dict[str, Any]) -> str:
         """
         在决定需要回复后，调用LLM生成正常的回复内容。
         
@@ -242,11 +349,14 @@ class ResponseEngine:
             # 在生成正常回复时，可以考虑传入最近的对话历史作为上下文
             # 但要注意，AstrBot的conversation_manager已经处理了对话历史，这里可能不需要重复传入
             # 为了简单和避免上下文过长，这里也选择不传入，让LLM基于当前prompt独立生成
+            base_sys_prompt = "你是一个拟人化的聊天助手。你的回复风格应该自然、友好、富有同理心，并且完全符合当前的聊天语境。请避免过于机械或官方的语气。"
+            persona = await self._resolve_persona_text(event)
+            sys_prompt = self._compose_system_prompt_with_persona(base_sys_prompt, persona)
             llm_response = await provider.text_chat(
                 prompt=response_prompt,
                 contexts=[],
                 image_urls=[],
-                system_prompt="你是一个拟人化的聊天助手。你的回复风格应该自然、友好、富有同理心，并且完全符合当前的聊天语境。请避免过于机械或官方的语气。"
+                system_prompt=sys_prompt
             )
             
             if llm_response and llm_response.completion_text:
@@ -260,7 +370,7 @@ class ResponseEngine:
             logger.error(f"ResponseEngine: 生成正常回复时发生异常: {e}", exc_info=True)
             return "抱歉，我刚才走神了，能再说一遍吗？" # 友好的错误提示
     
-    async def _build_response_prompt(self, event: Any, chat_context: Dict) -> str:
+    async def _build_response_prompt(self, event: Any, chat_context: Dict[str, Any]) -> str:
         """
         为生成正常回复构建发送给LLM的提示词。
         
